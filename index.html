@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ChatGPT 提问中转站</title>
+  <title>ChatGPT 会话中转站</title>
   <style>
     :root {
       --bg: #f6f7fb;
@@ -14,7 +14,9 @@
       --primary: #1f6feb;
       --primary-dark: #1859bf;
       --error: #b42318;
-      --answer-bg: #f8fafc;
+      --user: #1f6feb;
+      --assistant: #f3f4f6;
+      --shadow: 0 24px 80px rgba(22, 34, 51, .12);
     }
 
     * { box-sizing: border-box; }
@@ -25,47 +27,123 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at 15% 20%, rgba(31,111,235,.10), transparent 28rem),
-        radial-gradient(circle at 85% 5%, rgba(39,174,96,.10), transparent 24rem),
+        radial-gradient(circle at 12% 18%, rgba(31,111,235,.12), transparent 28rem),
+        radial-gradient(circle at 88% 6%, rgba(39,174,96,.10), transparent 24rem),
         var(--bg);
-      display: grid;
-      place-items: center;
       padding: 24px;
     }
 
     .app {
-      width: min(920px, 100%);
-      background: rgba(255,255,255,.88);
+      width: min(980px, 100%);
+      min-height: calc(100vh - 48px);
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background: rgba(255,255,255,.9);
       border: 1px solid rgba(216,220,231,.9);
       border-radius: 24px;
-      box-shadow: 0 24px 80px rgba(22, 34, 51, .12);
+      box-shadow: var(--shadow);
       overflow: hidden;
       backdrop-filter: blur(8px);
     }
 
     header {
-      padding: 28px 28px 18px;
+      padding: 24px 28px 18px;
       border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(24px, 4vw, 36px);
+      font-size: clamp(24px, 4vw, 34px);
       letter-spacing: -0.04em;
     }
 
     .subtitle {
-      margin: 10px 0 0;
+      margin: 8px 0 0;
       color: var(--muted);
       line-height: 1.6;
     }
 
-    main { padding: 28px; }
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    main {
+      padding: 24px 28px;
+      overflow: auto;
+    }
+
+    .chat {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 320px;
+    }
+
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      color: var(--muted);
+      line-height: 1.7;
+      background: rgba(248,250,252,.8);
+    }
+
+    .message {
+      max-width: 84%;
+      padding: 14px 16px;
+      border-radius: 18px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--user);
+      color: #fff;
+      border-bottom-right-radius: 6px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: var(--assistant);
+      color: var(--text);
+      border-bottom-left-radius: 6px;
+    }
+
+    .message.error {
+      align-self: flex-start;
+      background: #fff1f0;
+      color: var(--error);
+      border: 1px solid #ffccc7;
+    }
+
+    .message-meta {
+      display: block;
+      font-size: 12px;
+      opacity: .72;
+      margin-bottom: 4px;
+    }
+
+    .composer {
+      border-top: 1px solid var(--border);
+      padding: 18px 28px 24px;
+      background: rgba(255,255,255,.95);
+    }
 
     label {
       display: block;
       font-weight: 700;
-      margin: 0 0 10px;
+      margin: 0 0 8px;
     }
 
     textarea, input {
@@ -80,7 +158,8 @@
     }
 
     textarea {
-      min-height: 160px;
+      min-height: 112px;
+      max-height: 260px;
       resize: vertical;
       line-height: 1.6;
     }
@@ -90,14 +169,9 @@
       box-shadow: 0 0 0 4px rgba(31,111,235,.12);
     }
 
-    .grid {
-      display: grid;
-      gap: 16px;
-    }
-
     .access-code-wrap {
-      margin-top: 16px;
       display: none;
+      margin-top: 12px;
     }
 
     .actions {
@@ -105,7 +179,7 @@
       gap: 12px;
       align-items: center;
       flex-wrap: wrap;
-      margin-top: 18px;
+      margin-top: 14px;
     }
 
     button {
@@ -117,7 +191,7 @@
       cursor: pointer;
       color: white;
       background: var(--primary);
-      transition: background .15s, transform .15s;
+      transition: background .15s, transform .15s, opacity .15s;
     }
 
     button:hover { background: var(--primary-dark); }
@@ -136,28 +210,24 @@
 
     .ghost:hover { background: #f2f4f7; }
 
+    .danger {
+      background: transparent;
+      color: var(--error);
+      border: 1px solid #ffccc7;
+    }
+
+    .danger:hover { background: #fff1f0; }
+
     .status {
       color: var(--muted);
       min-height: 24px;
     }
 
-    .answer {
-      margin-top: 24px;
-      padding: 18px;
-      background: var(--answer-bg);
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      white-space: pre-wrap;
-      line-height: 1.7;
-      min-height: 120px;
-    }
-
-    .error { color: var(--error); }
-
-    footer {
-      padding: 16px 28px 24px;
+    .hint {
+      margin-top: 10px;
       color: var(--muted);
       font-size: 13px;
+      line-height: 1.5;
     }
 
     code {
@@ -165,75 +235,177 @@
       padding: 2px 6px;
       border-radius: 6px;
     }
+
+    @media (max-width: 640px) {
+      body { padding: 10px; }
+      .app { min-height: calc(100vh - 20px); border-radius: 18px; }
+      header, main, .composer { padding-left: 16px; padding-right: 16px; }
+      .message { max-width: 94%; }
+      button { width: 100%; }
+      .header-actions, .actions { width: 100%; }
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <h1>ChatGPT 提问中转站</h1>
-      <p class="subtitle">输入问题，提交后会通过你配置的后端代理调用 OpenAI API，并把回答显示在这里。</p>
+      <div>
+        <h1>ChatGPT 会话中转站</h1>
+        <p class="subtitle">
+          本页面会在当前浏览器 session 中保留上下文。刷新页面后仍在；关闭这个标签页后通常会清空。
+        </p>
+      </div>
+      <div class="header-actions">
+        <button id="exportBtn" class="ghost" type="button">导出记录</button>
+        <button id="newSessionBtn" class="danger" type="button">新会话</button>
+      </div>
     </header>
 
     <main>
-      <div class="grid">
-        <div>
-          <label for="question">你的问题</label>
-          <textarea id="question" placeholder="例如：请用三句话解释量子计算是什么。"></textarea>
-        </div>
+      <section id="chat" class="chat"></section>
+    </main>
 
-        <div id="accessCodeWrap" class="access-code-wrap">
-          <label for="accessCode">访问码</label>
-          <input id="accessCode" type="password" placeholder="输入访问码" autocomplete="off" />
-        </div>
+    <section class="composer">
+      <label for="question">输入你的问题</label>
+      <textarea id="question" placeholder="继续追问时，会自动带上本 session 的历史上下文。按 Ctrl/⌘ + Enter 发送。"></textarea>
+
+      <div id="accessCodeWrap" class="access-code-wrap">
+        <label for="accessCode">访问码</label>
+        <input id="accessCode" type="password" placeholder="输入访问码" autocomplete="off" />
       </div>
 
       <div class="actions">
-        <button id="askBtn">提交问题</button>
-        <button id="clearBtn" class="ghost" type="button">清空</button>
+        <button id="askBtn">发送</button>
+        <button id="clearInputBtn" class="ghost" type="button">清空输入</button>
         <span id="status" class="status"></span>
       </div>
 
-      <section id="answer" class="answer">回答会显示在这里。</section>
-    </main>
-
-    <footer>
-      部署前请修改脚本里的 <code>API_URL</code> 为你的 Cloudflare Worker 地址。不要把 OpenAI API key 写进这个 HTML。
-    </footer>
+      <div class="hint">
+        部署前请把脚本里的 <code>API_URL</code> 改为你的 Worker 地址。不要把 OpenAI API key 写进这个 HTML。
+      </div>
+    </section>
   </div>
 
   <script>
-    // 1) 部署 worker.js 后，把下面替换成你的 Worker 地址：
-    //    例如：https://chatgpt-relay.yourname.workers.dev/ask
+    /**
+     * 1) 部署 worker.js 后，把下面替换成你的 Worker 地址：
+     *    例如：https://chatgpt-relay.yourname.workers.dev/ask
+     */
     const API_URL = "https://chatgpt-relay-site.arthurqzhao.workers.dev/ask";
 
-    // 2) 如果 Worker 配置了 ACCESS_CODE，这里改成 true，页面会显示访问码输入框。
-    //    注意：这只是降低滥用的简单门槛，不是强安全认证。
+    /**
+     * 2) 如果 Worker 设置了 ACCESS_CODE，这里改成 true。
+     *    页面会显示访问码输入框，请求时会通过 x-access-code 发送给 Worker。
+     */
     const REQUIRE_ACCESS_CODE = true;
 
+    /**
+     * 3) 本地 session 记忆设置。
+     *    sessionStorage：同一个标签页内保存；关闭标签页后通常清空。
+     *    MAX_LOCAL_MESSAGES：前端最多保存多少条消息。
+     */
+    const SESSION_KEY = "chatgpt-relay-session-messages-v1";
+    const MAX_LOCAL_MESSAGES = 40;
+
+    const chatEl = document.getElementById("chat");
     const questionEl = document.getElementById("question");
     const accessCodeEl = document.getElementById("accessCode");
     const accessCodeWrap = document.getElementById("accessCodeWrap");
     const askBtn = document.getElementById("askBtn");
-    const clearBtn = document.getElementById("clearBtn");
+    const clearInputBtn = document.getElementById("clearInputBtn");
+    const newSessionBtn = document.getElementById("newSessionBtn");
+    const exportBtn = document.getElementById("exportBtn");
     const statusEl = document.getElementById("status");
-    const answerEl = document.getElementById("answer");
 
     if (REQUIRE_ACCESS_CODE) {
       accessCodeWrap.style.display = "block";
     }
 
-    function setBusy(isBusy) {
-      askBtn.disabled = isBusy;
-      askBtn.textContent = isBusy ? "正在生成..." : "提交问题";
+    let messages = loadMessages();
+
+    renderChat();
+
+    function loadMessages() {
+      try {
+        const parsed = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "[]");
+        if (!Array.isArray(parsed)) return [];
+        return parsed.filter(isValidClientMessage).slice(-MAX_LOCAL_MESSAGES);
+      } catch {
+        return [];
+      }
     }
 
-    function showError(message) {
-      statusEl.textContent = "请求失败";
-      answerEl.innerHTML = "";
-      const div = document.createElement("div");
-      div.className = "error";
-      div.textContent = message;
-      answerEl.appendChild(div);
+    function isValidClientMessage(message) {
+      return (
+        message &&
+        ["user", "assistant"].includes(message.role) &&
+        typeof message.content === "string" &&
+        message.content.trim()
+      );
+    }
+
+    function saveMessages() {
+      messages = messages.filter(isValidClientMessage).slice(-MAX_LOCAL_MESSAGES);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(messages));
+    }
+
+    function renderChat() {
+      chatEl.innerHTML = "";
+
+      if (!messages.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "还没有消息。输入一个问题开始聊天；之后的追问会自动携带本 session 中的上下文。";
+        chatEl.appendChild(empty);
+        return;
+      }
+
+      for (const message of messages) {
+        appendMessage(message.role, message.content, false);
+      }
+
+      scrollToBottom();
+    }
+
+    function appendMessage(role, content, shouldScroll = true) {
+      const bubble = document.createElement("div");
+      bubble.className = `message ${role}`;
+
+      const meta = document.createElement("span");
+      meta.className = "message-meta";
+      meta.textContent = role === "user" ? "你" : "助手";
+
+      const body = document.createElement("span");
+      body.textContent = content;
+
+      bubble.appendChild(meta);
+      bubble.appendChild(body);
+      chatEl.appendChild(bubble);
+
+      if (shouldScroll) scrollToBottom();
+    }
+
+    function appendError(content) {
+      const bubble = document.createElement("div");
+      bubble.className = "message error";
+      bubble.textContent = content;
+      chatEl.appendChild(bubble);
+      scrollToBottom();
+    }
+
+    function scrollToBottom() {
+      requestAnimationFrame(() => {
+        chatEl.parentElement.scrollTop = chatEl.parentElement.scrollHeight;
+      });
+    }
+
+    function setBusy(isBusy) {
+      askBtn.disabled = isBusy;
+      askBtn.textContent = isBusy ? "正在生成..." : "发送";
+    }
+
+    function setStatus(text) {
+      statusEl.textContent = text || "";
     }
 
     async function ask() {
@@ -241,18 +413,25 @@
       const accessCode = accessCodeEl.value.trim();
 
       if (!question) {
-        showError("请先输入问题。");
+        appendError("请先输入问题。");
         return;
       }
 
-      if (!API_URL.includes("workers.dev") || API_URL.includes("YOUR-WORKER-SUBDOMAIN")) {
-        showError("请先在 index.html 里把 API_URL 改成你的 Worker 地址。");
+      if (!API_URL.includes("/ask") || API_URL.includes("YOUR-WORKER-SUBDOMAIN")) {
+        appendError("请先在 index.html 里把 API_URL 改成你的 Worker /ask 地址。");
         return;
       }
 
+      const userMessage = { role: "user", content: question };
+      messages.push(userMessage);
+      saveMessages();
+
+      if (chatEl.querySelector(".empty")) chatEl.innerHTML = "";
+      appendMessage("user", question);
+
+      questionEl.value = "";
       setBusy(true);
-      statusEl.textContent = "正在请求...";
-      answerEl.textContent = "";
+      setStatus("正在请求...");
 
       try {
         const res = await fetch(API_URL, {
@@ -261,7 +440,9 @@
             "Content-Type": "application/json",
             ...(accessCode ? { "x-access-code": accessCode } : {})
           },
-          body: JSON.stringify({ question })
+          body: JSON.stringify({
+            messages: messages.slice(-MAX_LOCAL_MESSAGES)
+          })
         });
 
         const data = await res.json().catch(() => ({}));
@@ -270,22 +451,64 @@
           throw new Error(data.error || `HTTP ${res.status}`);
         }
 
-        answerEl.textContent = data.answer || "没有返回内容。";
-        statusEl.textContent = "完成";
+        const answer = data.answer || "没有返回内容。";
+        messages.push({ role: "assistant", content: answer });
+        saveMessages();
+
+        appendMessage("assistant", answer);
+        setStatus("完成");
       } catch (err) {
-        showError(err.message || "未知错误");
+        messages = messages.filter(m => m !== userMessage);
+        saveMessages();
+        appendError(err.message || "请求失败");
+        setStatus("请求失败");
       } finally {
         setBusy(false);
+        questionEl.focus();
       }
     }
 
+    function newSession() {
+      const ok = confirm("确定要清空当前 session 的上下文吗？");
+      if (!ok) return;
+
+      messages = [];
+      sessionStorage.removeItem(SESSION_KEY);
+      renderChat();
+      setStatus("已开启新会话");
+      questionEl.focus();
+    }
+
+    function exportTranscript() {
+      if (!messages.length) {
+        appendError("当前没有可导出的聊天记录。");
+        return;
+      }
+
+      const content = messages.map(message => {
+        const speaker = message.role === "user" ? "你" : "助手";
+        return `## ${speaker}\n\n${message.content}`;
+      }).join("\n\n---\n\n");
+
+      const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `chat-transcript-${date}.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
     askBtn.addEventListener("click", ask);
-    clearBtn.addEventListener("click", () => {
+    clearInputBtn.addEventListener("click", () => {
       questionEl.value = "";
-      answerEl.textContent = "回答会显示在这里。";
-      statusEl.textContent = "";
       questionEl.focus();
     });
+    newSessionBtn.addEventListener("click", newSession);
+    exportBtn.addEventListener("click", exportTranscript);
 
     questionEl.addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
